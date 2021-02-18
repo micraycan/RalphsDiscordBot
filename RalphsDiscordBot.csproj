@@ -11,4 +11,10 @@
     <PackageReference Include="DSharpPlus.Interactivity" Version="4.0.0-nightly-00800" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="config.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

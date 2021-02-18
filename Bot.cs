@@ -1,5 +1,7 @@
 ﻿using DSharpPlus;
 using DSharpPlus.CommandsNext;
+using DSharpPlus.EventArgs;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -23,6 +25,34 @@ namespace RalphsDiscordBot
 
             var configJson = JsonConvert.DeserializeObject<ConfigJson>(json);
 
+            var config = new DiscordConfiguration
+            {
+                Token = configJson.Token,
+                TokenType = TokenType.Bot,
+                AutoReconnect = true,
+                MinimumLogLevel = LogLevel.Debug
+            };
+
+            Client = new DiscordClient(config);
+
+            Client.Ready += OnClientReady;
+
+            var commandsConfig = new CommandsNextConfiguration
+            {
+                StringPrefixes = new string[] { configJson.Prefix },
+                EnableMentionPrefix = true,
+                EnableDms = false
+            };
+
+            Commands = Client.UseCommandsNext(commandsConfig);
+
+            await Client.ConnectAsync();
+            await Task.Delay(-1);
+        }
+
+        private Task OnClientReady(object sender, ReadyEventArgs e)
+        {
+            return Task.CompletedTask;
         }
     }
 }
