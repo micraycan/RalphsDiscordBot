@@ -3,6 +3,7 @@ using DSharpPlus.CommandsNext;
 using DSharpPlus.EventArgs;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using RalphsDiscordBot.Commands;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -41,10 +42,12 @@ namespace RalphsDiscordBot
             {
                 StringPrefixes = new string[] { configJson.Prefix },
                 EnableMentionPrefix = true,
-                EnableDms = false
+                EnableDms = false,
+                EnableDefaultHelp = true // set up custom one eventually
             };
 
             Commands = Client.UseCommandsNext(commandsConfig);
+            Commands.RegisterCommands<TestingCommands>();
 
             await Client.ConnectAsync();
             await Task.Delay(-1);
