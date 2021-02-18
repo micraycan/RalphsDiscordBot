@@ -10,15 +10,10 @@ namespace RalphsDiscordBot.Commands
     public class TestingCommands : BaseCommandModule
     {
         [Command("test")]
+        [Description("Responds in appropriate manner")]
         public async Task Test(CommandContext ctx)
         {
             await ctx.Channel.SendMessageAsync("goo goo gaa gaa").ConfigureAwait(false);
-        }
-
-        [Command("add")]
-        public async Task Add(CommandContext ctx, int numberOne, int numberTwo)
-        {
-            await ctx.Channel.SendMessageAsync((numberOne + numberTwo).ToString()).ConfigureAwait(false);
         }
     }
 }
