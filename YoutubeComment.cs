@@ -11,7 +11,7 @@ namespace RalphsDiscordBot
     {
         public async Task<string> GetVideoCommentAsync(string videoURL, string APIKEY, string APIURL, string VIDEOAPIURL)
         {
-            string videoID = Regex.Match(videoURL, @"^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*").Groups[2].Value;
+            string videoID = Regex.Match(videoURL, @"^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]{11}).*").Groups[2].Value;
             string commentRq = APIURL + "&videoId=" + videoID + APIKEY;
             string channelRq = VIDEOAPIURL + "&id=" + videoID + APIKEY;
 
