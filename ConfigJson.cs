@@ -13,5 +13,14 @@ namespace RalphsDiscordBot
 
         [JsonProperty("prefix")]
         public string Prefix { get; private set; }
+
+        [JsonProperty("APIKEY")]
+        public string APIKEY { get; private set; }
+
+        [JsonProperty("APIURL")]
+        public string APIURL { get; private set; }
+
+        [JsonProperty("VIDEOAPIURL")]
+        public string VIDEOAPIURL { get; private set; }
     }
 }

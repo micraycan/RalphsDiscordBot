@@ -3,6 +3,7 @@ using DSharpPlus.CommandsNext;
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
 using DSharpPlus.Interactivity;
+using DSharpPlus.Net;
 using DSharpPlus.Interactivity.Extensions;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -21,6 +22,10 @@ namespace RalphsDiscordBot
         public CommandsNextExtension Commands { get; private set; }
         public InteractivityExtension Interactivity { get; private set; }
 
+        private string APIKEY;
+        private string APIURL;
+        private string VIDEOAPIURL;
+
         public async Task RunAsync()
         {
             var json = "";
@@ -29,6 +34,10 @@ namespace RalphsDiscordBot
                 json = await sr.ReadToEndAsync().ConfigureAwait(false);
 
             var configJson = JsonConvert.DeserializeObject<ConfigJson>(json);
+
+            APIKEY = configJson.APIKEY;
+            APIURL = configJson.APIURL;
+            VIDEOAPIURL = configJson.VIDEOAPIURL;
 
             var config = new DiscordConfiguration
             {
@@ -43,6 +52,7 @@ namespace RalphsDiscordBot
 
             Client.Ready += OnClientReady;
             Client.GuildMemberAdded += MemberAddedHandler;
+            Client.MessageCreated += MessageCreatedHandler;
 
             Client.UseInteractivity(new InteractivityConfiguration
             {
@@ -76,6 +86,20 @@ namespace RalphsDiscordBot
             e.Member.GrantRoleAsync(e.Guild.GetRole(310980088122441728));
 
             return Task.CompletedTask;
+        }
+
+        private async Task MessageCreatedHandler(DiscordClient s, MessageCreateEventArgs e)
+        {
+            // check for youtube links to get comments
+            if (e.Message.Content.StartsWith("https://www.youtube.com") ||
+                e.Message.Content.StartsWith("https://youtube.com") || 
+                e.Message.Content.StartsWith("https://youtu.be"))
+            {
+                YoutubeComment ytComment = new YoutubeComment();
+                string comment = await ytComment.GetVideoCommentAsync(e.Message.Content, APIKEY, APIURL, VIDEOAPIURL);
+
+                await s.SendMessageAsync(e.Channel, comment);
+            }
         }
     }
 }
