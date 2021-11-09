@@ -50,7 +50,7 @@ namespace RalphsDiscordBot
 
             // choose a random comment
             Random r = new Random();
-            int rInt = r.Next(0, comments.Count);
+            int rInt = r.Next(0, comments.Count - 1);
 
             return comments[rInt];
         }
