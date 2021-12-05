@@ -13,11 +13,25 @@ namespace RalphsDiscordBot.Commands
     {
         [Command("rule34")]
         [Description("Rule 34 lookup")]
-        public async Task Rule34(CommandContext ctx, string searchTag)
+        public async Task Rule34(CommandContext ctx, params string[] searchTag)
         {
+            string adjustedSearchTag = "";
+
+            for (int i = 0; i < searchTag.Length; i++)
+            {
+                if (searchTag.Length - 1 == i)
+                {
+                    adjustedSearchTag += searchTag[i];
+                } else
+                {
+                    string updatedWord = searchTag[i] + "+";
+                    adjustedSearchTag += updatedWord;
+                }
+            }
+
             Rule34Search rule34 = new Rule34Search();
 
-            string result = await rule34.GetSearchResultAsync(searchTag);
+            string result = await rule34.GetSearchResultAsync(adjustedSearchTag);
 
             await ctx.Channel.SendMessageAsync(result);
         }
