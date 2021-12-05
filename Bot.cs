@@ -70,6 +70,7 @@ namespace RalphsDiscordBot
             Commands = Client.UseCommandsNext(commandsConfig);
             Commands.RegisterCommands<TestingCommands>();
             Commands.RegisterCommands<GamblingCommands>();
+            Commands.RegisterCommands<Rule34Commands>();
 
             await Client.ConnectAsync();
             await Task.Delay(-1);
