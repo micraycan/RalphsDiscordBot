@@ -11,7 +11,7 @@ namespace RalphsDiscordBot
     {
         public async Task<string> GetSearchResultAsync(string searchTag)
         {
-            string searchRq = "https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&limit=10&json=1&tags=" + searchTag;
+            string searchRq = "https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&limit=100&json=1&tags=" + searchTag;
 
             HttpClient client = new HttpClient();
             HttpResponseMessage searchRs = await client.GetAsync(searchRq);
