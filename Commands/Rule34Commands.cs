@@ -16,22 +16,32 @@ namespace RalphsDiscordBot.Commands
         public async Task Rule34(CommandContext ctx, params string[] searchTag)
         {
             string adjustedSearchTag = "";
+            string result = "";
 
-            for (int i = 0; i < searchTag.Length; i++)
+            if (ctx.Channel.Id == 919354981025452062)
             {
-                if (searchTag.Length - 1 == i)
+                for (int i = 0; i < searchTag.Length; i++)
                 {
-                    adjustedSearchTag += searchTag[i];
-                } else
-                {
-                    string updatedWord = searchTag[i] + "+";
-                    adjustedSearchTag += updatedWord;
+                    if (searchTag.Length - 1 == i)
+                    {
+                        adjustedSearchTag += searchTag[i];
+                    }
+                    else
+                    {
+                        string updatedWord = searchTag[i] + "+";
+                        adjustedSearchTag += updatedWord;
+                    }
                 }
+
+                Rule34Search rule34 = new Rule34Search();
+
+                result = await rule34.GetSearchResultAsync(adjustedSearchTag);
+            } else
+            {
+                result = "Wrong channel";
             }
 
-            Rule34Search rule34 = new Rule34Search();
-
-            string result = await rule34.GetSearchResultAsync(adjustedSearchTag);
+            
 
             await ctx.Channel.SendMessageAsync(result);
         }
