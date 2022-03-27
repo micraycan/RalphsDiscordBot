@@ -15,37 +15,46 @@ namespace RalphsDiscordBot
             string commentRq = APIURL + "&videoId=" + videoID + APIKEY;
             string channelRq = VIDEOAPIURL + "&id=" + videoID + APIKEY;
 
-            HttpClient client = new HttpClient();
-            HttpResponseMessage commentRs = await client.GetAsync(commentRq);
-            HttpResponseMessage channelRs = await client.GetAsync(channelRq);
-            commentRs.EnsureSuccessStatusCode();
-            channelRs.EnsureSuccessStatusCode();
-            string responseBodyComments = await commentRs.Content.ReadAsStringAsync();
-            string responseBodyChannel = await channelRs.Content.ReadAsStringAsync();
-
-            dynamic commentjson = JsonConvert.DeserializeObject(responseBodyComments);
-            dynamic channeljson = JsonConvert.DeserializeObject(responseBodyChannel);
-
-            string channelAuthor = channeljson["items"][0]["snippet"]["channelTitle"];
-
             List<string> comments = new List<string>();
 
-            if (commentjson["items"].Count > 0)
+            try
             {
-                foreach (dynamic item in commentjson["items"])
-                {
-                    string comment = item["snippet"]["topLevelComment"]["snippet"]["textOriginal"].ToString();
+                HttpClient client = new HttpClient();
+                HttpResponseMessage commentRs = await client.GetAsync(commentRq);
+                HttpResponseMessage channelRs = await client.GetAsync(channelRq);
+                commentRs.EnsureSuccessStatusCode();
+                channelRs.EnsureSuccessStatusCode();
+                string responseBodyComments = await commentRs.Content.ReadAsStringAsync();
+                string responseBodyChannel = await channelRs.Content.ReadAsStringAsync();
 
-                    // skip author comments and long comments
-                    if (item["snippet"]["topLevelComment"]["snippet"]["authorDisplayName"] != channelAuthor &&
-                        comment.Length < 200) 
+                dynamic commentjson = JsonConvert.DeserializeObject(responseBodyComments);
+                dynamic channeljson = JsonConvert.DeserializeObject(responseBodyChannel);
+
+                string channelAuthor = channeljson["items"][0]["snippet"]["channelTitle"];
+
+                if (commentjson["items"].Count > 0)
+                {
+                    foreach (dynamic item in commentjson["items"])
                     {
-                        comments.Add((item["snippet"]["topLevelComment"]["snippet"]["textOriginal"]).ToString());
+                        string comment = item["snippet"]["topLevelComment"]["snippet"]["textOriginal"].ToString();
+
+                        // skip author comments and long comments
+                        if (item["snippet"]["topLevelComment"]["snippet"]["authorDisplayName"] != channelAuthor &&
+                            comment.Length < 200)
+                        {
+                            comments.Add(comment);
+                        }
                     }
                 }
-            } else // if no comments on video
+                else // if no comments on video
+                {
+                    comments.Add("boring");
+                }
+            } 
+            catch
             {
-                comments.Add("boring");
+                // if comments are disabled or some other stupid reason google returns an error, boye doesn't like that
+                comments.Add("i hate this");
             }
 
             // choose a random comment
