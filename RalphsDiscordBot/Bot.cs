@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace RalphsDiscordBot
 {
@@ -26,12 +27,12 @@ namespace RalphsDiscordBot
         private string APIURL;
         private string VIDEOAPIURL;
 
-        public async Task RunAsync()
+        public Bot(IServiceProvider services)
         {
             var json = "";
             using (var fs = File.OpenRead("config.json"))
             using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
-                json = await sr.ReadToEndAsync().ConfigureAwait(false);
+                json = sr.ReadToEnd();
 
             var configJson = JsonConvert.DeserializeObject<ConfigJson>(json);
 
@@ -64,7 +65,8 @@ namespace RalphsDiscordBot
                 StringPrefixes = new string[] { configJson.Prefix },
                 EnableMentionPrefix = true,
                 EnableDms = false,
-                EnableDefaultHelp = true // set up custom one eventually
+                EnableDefaultHelp = true, // set up custom one eventually
+                Services = services
             };
 
             Commands = Client.UseCommandsNext(commandsConfig);
@@ -72,8 +74,7 @@ namespace RalphsDiscordBot
             Commands.RegisterCommands<GamblingCommands>();
             Commands.RegisterCommands<Rule34Commands>();
 
-            await Client.ConnectAsync();
-            await Task.Delay(-1);
+            Client.ConnectAsync();
         }
 
         private Task OnClientReady(object sender, ReadyEventArgs e)

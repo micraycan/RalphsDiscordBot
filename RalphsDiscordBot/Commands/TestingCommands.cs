@@ -10,6 +10,7 @@ namespace RalphsDiscordBot.Commands
     public class TestingCommands : BaseCommandModule
     {
         [Command("test")]
+        [RequireRoles(RoleCheckMode.Any, "Admin")]
         [Description("Responds in appropriate manner")]
         public async Task Test(CommandContext ctx)
         {
@@ -17,7 +18,7 @@ namespace RalphsDiscordBot.Commands
         }
 
         [Command("8ball")]
-        [Description("Responds in appropriate manner")]
+        [RequireRoles(RoleCheckMode.Any, "Admin")]
         public async Task Magic8Ball(CommandContext ctx, params string[] question)
         {
             string[] answers = new string[] {
