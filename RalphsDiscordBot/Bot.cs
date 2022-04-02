@@ -54,6 +54,7 @@ namespace RalphsDiscordBot
             Client.Ready += OnClientReady;
             Client.GuildMemberAdded += MemberAddedHandler;
             Client.MessageCreated += MessageCreatedHandler;
+            Client.Heartbeated += HeartBeatEvent;
 
             Client.UseInteractivity(new InteractivityConfiguration
             {
@@ -70,7 +71,7 @@ namespace RalphsDiscordBot
             };
 
             Commands = Client.UseCommandsNext(commandsConfig);
-            Commands.RegisterCommands<TestingCommands>();
+            // Commands.RegisterCommands<TestingCommands>();
             Commands.RegisterCommands<GamblingCommands>();
             Commands.RegisterCommands<Rule34Commands>();
 
@@ -102,6 +103,13 @@ namespace RalphsDiscordBot
 
                 await s.SendMessageAsync(e.Channel, comment);
             }
+        }
+
+        private async Task HeartBeatEvent(DiscordClient s, HeartbeatEventArgs e)
+        {
+            // DiscordChannel channel = await s.GetChannelAsync(959076723813666816);
+
+            // await s.SendMessageAsync(channel, "!lottery");
         }
     }
 }

@@ -10,11 +10,14 @@ namespace RalphsDiscordBot.Core.Services
 {
     public interface IUserService
     {
+        Task<List<Users>> GetLeaderboard();
         Task<Users> GetUserById(string discordId);
-        Task<bool> PayUser(string discordId, decimal amount, DateTime dateTime);
+        Task<bool> PayUser(string discordId, decimal amount, DateTime dateTime, bool stimulus);
         Task<bool> DepositMoney(string discordId, decimal amount);
         Task<bool> WithdrawMoney(string discordId, decimal amount);
         Task TakeMoney(string discordId, decimal amount);
+        Task GiveMoney(string discordId, decimal amount);
+        Task SetCockfightStreak(string discordId, bool won);
     }
 
     public class UserService : IUserService
@@ -26,10 +29,23 @@ namespace RalphsDiscordBot.Core.Services
             _options = options;
         }
 
-        public async Task<Users> GetUserById(string discordId)
+        public async Task<List<Users>> GetLeaderboard()
         {
             using var context = new DiscordDBContext(_options);
 
+            var leaderboard = await context.Users.FromSqlRaw("SELECT Id, DiscordId, CashBalance + BankBalance AS CashBalance, BankBalance, LastWorked, CockFightWinStreak, LastStimulus " +
+                                                             "FROM DiscordDBContext.dbo.Users " +
+                                                             "WHERE DiscordId != 383717290715250688 AND DiscordId != 811705966184628296" + // omit the casino user
+                                                             "ORDER BY CashBalance DESC").ToListAsync();
+
+            return leaderboard;
+        }
+
+
+        public async Task<Users> GetUserById(string discordId)
+        {
+            using var context = new DiscordDBContext(_options);
+            
             Users user = await context.Users
                 .FirstOrDefaultAsync(x => x.DiscordId == discordId).ConfigureAwait(false);
 
@@ -41,36 +57,71 @@ namespace RalphsDiscordBot.Core.Services
                 DiscordId = discordId,
                 CashBalance = 0.00m,
                 BankBalance = 0.00m,
-                LastWorked = DateTime.Now.Subtract(TimeSpan.FromMinutes(10))
+                LastWorked = DateTime.Now.Subtract(TimeSpan.FromMinutes(30)),
+                LastStimulus = DateTime.Now.Subtract(TimeSpan.FromHours(24)),
+                CockFightWinStreak = 0
             };
-
+            
             await context.AddAsync(user).ConfigureAwait(false);
             await context.SaveChangesAsync().ConfigureAwait(false);
 
             return user;
         }
 
-        public async Task<bool> PayUser(string discordId, decimal amount, DateTime dateTime)
+        public async Task SetCockfightStreak(string discordId, bool won)
         {
             using var context = new DiscordDBContext(_options);
 
             Users user = await GetUserById(discordId).ConfigureAwait(false);
 
-            TimeSpan interval = DateTime.Now - user.LastWorked;
-
-            // over limit
-            if (interval < TimeSpan.FromMinutes(10))
+            if (won)
             {
-                return false;
+                user.CockFightWinStreak++;
+            } else
+            {
+                user.CockFightWinStreak = 0;
             }
 
+            context.Update(user);
+            await context.SaveChangesAsync().ConfigureAwait(false);
+        }
+
+        public async Task<bool> PayUser(string discordId, decimal amount, DateTime dateTime, bool stimulus)
+        {
+            using var context = new DiscordDBContext(_options);
+
+            Users user = await GetUserById(discordId).ConfigureAwait(false);
+
             user.CashBalance += amount;
-            user.LastWorked = dateTime;
+            
+            if (stimulus)
+            {
+                TimeSpan interval = DateTime.Now - user.LastStimulus;
+                if (interval < TimeSpan.FromHours(24)) { return false; }
+                user.LastStimulus = dateTime;
+            } else
+            {
+                TimeSpan interval = DateTime.Now - user.LastWorked;
+                if (interval < TimeSpan.FromMinutes(30)) { return false; }
+                user.LastWorked = dateTime;
+            }
 
             context.Update(user);
             await context.SaveChangesAsync().ConfigureAwait(false);
 
             return true;
+        }
+
+        public async Task GiveMoney(string discordId, decimal amount)
+        {
+            using var context = new DiscordDBContext(_options);
+
+            Users user = await GetUserById(discordId).ConfigureAwait(false);
+
+            user.CashBalance += amount;
+
+            context.Update(user);
+            await context.SaveChangesAsync().ConfigureAwait(false);
         }
 
         public async Task TakeMoney(string discordId, decimal amount)
@@ -126,5 +177,6 @@ namespace RalphsDiscordBot.Core.Services
 
             return true;
         }
+
     }
 }

@@ -33,27 +33,35 @@ namespace RalphsDiscordBot.Handlers.Dialogue
         {
             while (_currentStep != null)
             {
-                _currentStep.OnMessageAdded += (message) => messages.Add(message);
+                try
+                {
+                    _currentStep.OnMessageAdded += (message) => messages.Add(message);
 
-                bool cancelled = await _currentStep.ProcessStep(_client, _channel, _user).ConfigureAwait(false);
+                    bool cancelled = await _currentStep.ProcessStep(_client, _channel, _user).ConfigureAwait(false);
 
-                if (cancelled)
+                    if (cancelled)
+                    {
+                        await DeleteMessages().ConfigureAwait(false);
+
+                        /*
+                        var cancelEmbed = new DiscordEmbedBuilder
+                        {
+                            Description = "Session ended"
+                        };
+
+                        await _channel.SendMessageAsync(embed: cancelEmbed).ConfigureAwait(false);
+                        */
+
+                        return false;
+                    }
+
+                    _currentStep = _currentStep.NextStep;
+                } catch
                 {
                     await DeleteMessages().ConfigureAwait(false);
 
-                    /*
-                    var cancelEmbed = new DiscordEmbedBuilder
-                    {
-                        Description = "Session ended"
-                    };
-
-                    await _channel.SendMessageAsync(embed: cancelEmbed).ConfigureAwait(false);
-                    */
-
-                    return false;
+                    return true;
                 }
-
-                _currentStep = _currentStep.NextStep;
             }
 
             await DeleteMessages().ConfigureAwait(false);

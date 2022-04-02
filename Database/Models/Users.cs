@@ -13,5 +13,7 @@ namespace Database.Models
         [Column(TypeName = "decimal(18,2)")]
         public decimal BankBalance { get; set; }
         public DateTime LastWorked { get; set; }
+        public DateTime LastStimulus { get; set; }
+        public int CockFightWinStreak { get; set; }
     }
 }
