@@ -15,5 +15,6 @@ namespace Database.Models
         public DateTime LastWorked { get; set; }
         public DateTime LastStimulus { get; set; }
         public int CockFightWinStreak { get; set; }
+        public int LotteryTicketCount { get; set; }
     }
 }

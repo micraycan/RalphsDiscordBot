@@ -5,7 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="DSharpPlus.CommandsNext" Version="4.2.0-nightly-01042" />
+    <PackageReference Include="DSharpPlus.CommandsNext" Version="4.2.0-nightly-01105" />
   </ItemGroup>
 
   <ItemGroup>

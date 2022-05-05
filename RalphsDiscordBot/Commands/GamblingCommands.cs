@@ -40,12 +40,14 @@ namespace RalphsDiscordBot.Commands
             helpEmbed.AddField("!work", $"Every 30 minutes you can use the !work command to earn cash.\n*Nitro Boosters earn more.*");
             helpEmbed.AddField("!bank", $"Get your available cash and bank balance.");
             helpEmbed.AddField("!withdraw", $"Withdraw money from bank as cash. Specify amount to withdraw after command or leave empty and withdraw all available funds.");
-            helpEmbed.AddField("!deopsit", $"Deposit cash into your bank. Specify amount to deposit after command or leave empty and deposit all available cash");
-            helpEmbed.AddField("!cockfight", $"Place your bet and send your chicken off to fight.\nYou have a 50% chance to win. Every win you gain 1% until 70%\nIf no bet specified, bet defaults to $100.\n*Nitro Boosters earn more.*");
+            helpEmbed.AddField("!deposit", $"Deposit cash into your bank. Specify amount to deposit after command or leave empty and deposit all available cash");
+            helpEmbed.AddField("!cockfight", $"Place your bet and send your chicken off to fight.\nYou have a 50% chance to win. Every win you gain 1% until 70%\nIf no bet specified, bet defaults to $100.");
             helpEmbed.AddField("!gamble", $"Select your bet and roll for that amount,\nlowest pays highest roller the difference.\nMinimum $100 required to play, game starts after 60 seconds");
             helpEmbed.AddField("!stimulus", $"Receive a stimulus to satisfy your gambling addiction every 24 hours.");
             helpEmbed.AddField("!lottery", $"View the current lottery pool, draw date TBD.");
             helpEmbed.AddField("!leaderboard", $"View the leaderboard.");
+            helpEmbed.AddField("!ticket", $"Buy lottery ticket, 10 available per person. Pick a number between 1 - 50, leave blank for quickpick");
+            helpEmbed.AddField("!slots", $"Play the slot machine, middle row only. Default bet is $100");
 
             await ctx.Channel.SendMessageAsync(embed: helpEmbed).ConfigureAwait(false);
         }
@@ -55,22 +57,26 @@ namespace RalphsDiscordBot.Commands
         public async Task Leaderboard(CommandContext ctx)
         {
             var leaderboard = await _userService.GetLeaderboard().ConfigureAwait(false);
-            string stringBuilder = "Includes both cash and bank balance.\n\n";
+            string usernamesString = String.Empty;
+            string balanceString = String.Empty;
             int count = 1;
 
             foreach (Users user in leaderboard)
             {
                 var member = await ctx.Guild.GetMemberAsync(ulong.Parse(user.DiscordId));
-                stringBuilder += $"{count}. **{member.DisplayName}** - ${user.CashBalance:N}\n";
+                usernamesString += $"{count}. **{member.DisplayName}**\n";
+                balanceString += $"$ {user.CashBalance:N0}\n";
                 count++;
             }
 
             var embed = new DiscordEmbedBuilder
             {
                 Title = $"{ctx.Guild.Name} Leaderboard",
-                Description = stringBuilder,
                 Color = DiscordColor.Cyan
             };
+
+            embed.AddField("Name", usernamesString, true);
+            embed.AddField("Total Balance", balanceString, true);
 
             await ctx.Channel.SendMessageAsync(embed: embed).ConfigureAwait(false);
         }
@@ -80,17 +86,122 @@ namespace RalphsDiscordBot.Commands
         public async Task Lottery(CommandContext ctx)
         {
             Users casinoUser = await _userService.GetUserById(_casinoUserId).ConfigureAwait(false);
+            Users user = await _userService.GetUserById(ctx.Member.Id.ToString()).ConfigureAwait(false);
+            
             var lotteryEmbed = new DiscordEmbedBuilder
             {
                 Title = "Covid420 Casino Lottery",
-                Description = $"All cockfight wins for the bot are collected for a lottery.\n" +
-                              $"*Lottery drawing date TBD*",
+                Description = $"Casino taxes are collected and given out in a lottery.\n",
                 Color = DiscordColor.Cyan
             };
 
-            lotteryEmbed.AddField("Current Lottery Pool", $"${casinoUser.CashBalance:N}");
+            if (user.LotteryTicketCount > 0)
+            {
+                string entryText = String.Empty;
+
+                List<int> currentEntries = await _userService.GetLottoTicketsByUser(user.DiscordId).ConfigureAwait(false);
+
+                foreach (var entry in currentEntries)
+                {
+                    if (entry.Equals(currentEntries.Last()))
+                    {
+                        entryText += $"{entry}";
+                    } else
+                    {
+                        entryText += $"{entry}, ";
+                    }
+                }
+
+                lotteryEmbed.AddField($"Your Tickets ({user.LotteryTicketCount}/10)", $"{entryText}");
+            }
+
+            List<Users> ticketHolders = await _userService.GetUsersWithTickets().ConfigureAwait(false);
+            int totalTickets = 0;
+            foreach (Users ticketHolder in ticketHolders)
+            {
+                totalTickets += ticketHolder.LotteryTicketCount;
+            }
+
+            lotteryEmbed.AddField("Current Lottery Pool", $"${casinoUser.CashBalance:N}", true);
+            lotteryEmbed.AddField("Total Tickets Sold", $"{totalTickets}", true);
+            lotteryEmbed.AddField("Total Participants", $"{ticketHolders.Count} Players", true);
+            lotteryEmbed.WithFooter($"Get tickets with !ticket. 10 available per person. Pick a number between 1 - 50, leave blank for quickpick.\n" +
+                                    $"First ticket is free, second ticket is free for Nitro Boosters, subsequent tickets cost $100,000. Ten tickets available per person.");
 
             await ctx.Channel.SendMessageAsync(embed: lotteryEmbed).ConfigureAwait(false);
+        }
+
+        [Command("ticket")]
+        [Description("Buy a lottery ticket, numbers range from 1-50")]
+        public async Task Ticket(CommandContext ctx, int number = 0)
+        {
+            if (ctx.Channel.Name == "casino")
+            {
+                Users user = await _userService.GetUserById(ctx.Member.Id.ToString()).ConfigureAwait(false);
+                // if entered number out of range (1-50), use quickpick
+                bool quickPick = !(number > 0 && number <= 50);
+                int freeTicketCount = ctx.Member.PremiumSince != null ? 2 : 1;
+                int maxTickets = 10;
+                decimal ticketPrice = 100000m;
+                var embed = new DiscordEmbedBuilder { Color = DiscordColor.Green };
+                int quickPickNumber = random.Next(1, 50);
+                int ticketNumber = number;
+
+                if (quickPick)
+                {
+                    if (user.LotteryTicketCount > 0)
+                    {
+                        List<int> numbers = await _userService.GetLottoTicketsByUser(user.DiscordId).ConfigureAwait(false);
+                        var range = Enumerable.Range(1, 50).Where(i => !numbers.Contains(i));
+                        int index = new Random().Next(1, 50 - numbers.Count);
+                        quickPickNumber = range.ElementAt(index);
+                    }
+
+                    ticketNumber = quickPickNumber;
+                }
+
+                // regular users get first ticket free, nitro users get first two tickets free
+                if (user.LotteryTicketCount < freeTicketCount) { ticketPrice = 0; }
+
+                if (user.LotteryTicketCount < maxTickets)
+                {
+                    if (user.CashBalance >= ticketPrice)
+                    {
+                        bool succeeded = await _userService.BuyLottoTicket(user.DiscordId, ticketNumber).ConfigureAwait(false);
+
+                        if (succeeded)
+                        {
+                            embed.Description = $"{ctx.Member.Mention}, you receive ticket {ticketNumber}";
+                            await _userService.TakeMoney(user.DiscordId, ticketPrice);
+                            embed.AddField("Ticket Price", $"${ticketPrice:N}", true);
+                            embed.AddField("Cash Available", $"${(user.CashBalance - ticketPrice):N}", true);
+                            embed.AddField("Current Entries", $"{user.LotteryTicketCount + 1}", true);
+                        }
+                        else
+                        {
+                            embed.Description = $"{ctx.Member.Mention}, you have already picked {ticketNumber}, please choose another number between 1 and 50.";
+                            embed.Color = DiscordColor.Red;
+                        }
+                    }
+                    else
+                    {
+                        embed.Description = $"{ctx.Member.Mention}, you do not have enough cash available to purchase a ticket.";
+                        embed.Color = DiscordColor.Red;
+                        embed.AddField("Ticket Price", $"${ticketPrice:N}", true);
+                        embed.AddField("Cash Available", $"${user.CashBalance:N}", true);
+                    }
+                } else
+                {
+                    embed.Description = $"{ctx.Member.Mention}, you have reached the max amount of allowed tickets.";
+                    embed.Color = DiscordColor.Red;
+                }
+
+                embed.WithFooter($"First ticket is free, second ticket is free for Nitro Boosters, subsequent tickets cost $100,000. Ten tickets available per person.");
+                await ctx.Channel.SendMessageAsync(embed: embed).ConfigureAwait(false);
+            } else
+            {
+                await WrongChannelAlert(ctx).ConfigureAwait(false);
+            }
         }
 
         [Command("work")]
@@ -188,14 +299,159 @@ namespace RalphsDiscordBot.Commands
 
         [Command("testf")]
         [Description("testing command")]
-        [RequireRoles(RoleCheckMode.Any, "Admin")]
+        [RequireRoles(RoleCheckMode.Any, "Supreme Reader")]
         [Hidden()]
         public async Task TestF(CommandContext ctx)
         {
-            // Users user = await _userService.GetUserById(ctx.Member.Id.ToString()).ConfigureAwait(false);
+            /*
+            FormulaOneOdds f1Odds = new FormulaOneOdds();
+
+            foreach (string odds in f1Odds.GetF1Odds())
+            {
+                await ctx.Channel.SendMessageAsync(odds).ConfigureAwait(false);
+            }
+            */
+        }
+
+        [Command("slots")]
+        [Description("Slot Machine (middle line only). Tax collected on winnnings for lottery.")]
+        public async Task Slots(CommandContext ctx, decimal amount = 100)
+        {
+            if (ctx.Channel.Name == "casino")
+            {
+                Users user = await _userService.GetUserById(ctx.Member.Id.ToString()).ConfigureAwait(false);
+                DiscordEmoji indicator = DiscordEmoji.FromName(ctx.Client, ":arrow_backward:");
+                bool slotsWin = false;
+                string resultString = "";
+                decimal casinoTax = ctx.Member.PremiumSince != null ? 0.05m : 0.10m;
+                decimal userTaxRate = await _userService.GetTaxRate(user.DiscordId).ConfigureAwait(false);
+                decimal betAmount = amount;
+                decimal winModifier = 10m;
+                decimal winAmount = betAmount - (betAmount * (casinoTax * userTaxRate));
+                decimal newCashBalance;
+                NumberFormatInfo nfi = new CultureInfo("en-US", false).NumberFormat;
+                nfi.PercentDecimalDigits = 0;
+
+                List<DiscordEmoji> slotChoices = new List<DiscordEmoji>()
+                {
+                    DiscordEmoji.FromName(ctx.Client, ":slot_seven:"),
+                    DiscordEmoji.FromName(ctx.Client, ":slot_horseshoe:"),
+                    DiscordEmoji.FromName(ctx.Client, ":slot_diamond:")
+                };
+
+                List<DiscordEmoji> slotResults = new List<DiscordEmoji>();
+
+                // does user have enough money
+                if (user.CashBalance >= betAmount)
+                {
+                    // generate random slots
+                    for (int i = 0; i < 9; i++)
+                    {
+                        slotResults.Add(slotChoices[random.Next(0, slotChoices.Count)]);
+                    }
+
+                    // check for middle row win
+                    if (slotResults[3] == slotResults[4] && slotResults[4] == slotResults[5])
+                    {
+                        newCashBalance = user.CashBalance + winAmount * winModifier;
+                        slotsWin = true;
+                        resultString = "You win";
+                        betAmount = winAmount * winModifier;
+                        await _userService.GiveMoney(user.DiscordId, betAmount).ConfigureAwait(false);
+                    }
+                    else // lose
+                    {
+                        newCashBalance = user.CashBalance - betAmount;
+                        slotsWin = false;
+                        resultString = "You lose";
+                        await _userService.TakeMoney(user.DiscordId, betAmount).ConfigureAwait(false);
+                    }
+
+                    // embed builder
+                    var slotEmbed = new DiscordEmbedBuilder
+                    {
+                        Title = ctx.Member.DisplayName,
+                        Description = $"{resultString} ${betAmount:N}\n\n" +
+                                      $"{slotResults[0]} | {slotResults[1]} | {slotResults[2]}\n" +
+                                      $"{slotResults[3]} | {slotResults[4]} | {slotResults[5]} {indicator}\n" +
+                                      $"{slotResults[6]} | {slotResults[7]} | {slotResults[8]}",
+                        Color = slotsWin ? DiscordColor.Green : DiscordColor.Red,
+                    };
+
+                    slotEmbed.WithFooter($"New Cash Balance: ${newCashBalance:N} \nCasino collects {(casinoTax * userTaxRate).ToString("P", nfi)} tax on winnings for the lottery ");
+
+                    await ctx.Channel.SendMessageAsync(embed: slotEmbed).ConfigureAwait(false);
+                } 
+                else // not enough money
+                {
+                    await ctx.Channel.SendMessageAsync(embed: new DiscordEmbedBuilder { Description = $"{ctx.Member.Mention}, you don't have enough money.", Color = DiscordColor.Red });
+                }
+            } 
+            else
+            {
+                await WrongChannelAlert(ctx);
+            }
+        }
+
+        [Command("draw")]
+        [Description("Draw for lottery")]
+        [RequireRoles(RoleCheckMode.Any, "Supreme Reader")]
+        [Hidden()]
+        public async Task Draw(CommandContext ctx)
+        {
+            int winningTicket = random.Next(1, 50);
+            List<LotteryTickets> lotteryTickets = await _userService.GetAllTickets().ConfigureAwait(false);
+            Users casino = await _userService.GetUserById(_casinoUserId).ConfigureAwait(false);
+            List<Users> allUsers = await _userService.GetUsersWithTickets().ConfigureAwait(false);
+            List<Users> winners = new List<Users>();
+            string winnerString = String.Empty;
+
+            foreach (LotteryTickets ticket in lotteryTickets)
+            {
+                if (ticket.TicketNumber == winningTicket) { winners.Add(allUsers.Find(x => x.DiscordId == ticket.DiscordId)); }
+            }
+
+            decimal prizeMoney = winners.Count > 0 ? casino.CashBalance / winners.Count : casino.CashBalance;
+
+            var drawingEmbed = new DiscordEmbedBuilder
+            {
+                Title = $"Lottery results for {DateTime.Now:d}"
+            };
+
+            if (winners.Count > 0)
+            {
+                drawingEmbed.Description = $"Winning tickets sold: {winners.Count}\nTotal Pot: ${casino.CashBalance:N}";
+
+                foreach (Users user in winners)
+                {
+                    ulong id;
+                    if (UInt64.TryParse(user.DiscordId, out id))
+                    {
+                        DiscordMember winner = await ctx.Guild.GetMemberAsync(id);
+
+                        if (user.Equals(winners.Last())) { winnerString += $"{winner.Mention} ${prizeMoney:N}"; }
+                        else { winnerString += $"{winner.Mention} ${prizeMoney:N}\n"; }
+                    }
+
+                    await _userService.GiveMoney(user.DiscordId, prizeMoney);
+                }
+                
+                drawingEmbed.AddField("Winners", $"{winnerString}", true);
+                drawingEmbed.Color = DiscordColor.Green;
+
+                await _userService.TakeMoney(casino.DiscordId, casino.CashBalance);
+                await _userService.ClearLotteryTickets().ConfigureAwait(false);
+            } else
+            {
+                drawingEmbed.Description = "No winning tickets were sold this time.";
+                drawingEmbed.Color = DiscordColor.Red;
+            }
 
             
+            drawingEmbed.AddField("Winning Number", $"{winningTicket}");
+            var msg = await ctx.Channel.SendMessageAsync(embed: drawingEmbed).ConfigureAwait(false);
 
+            await msg.PinAsync();
         }
 
         [Command("deposit")]
@@ -416,12 +672,15 @@ namespace RalphsDiscordBot.Commands
                 // default win rate 50%, nitro boosters get 5% bonus
                 Users user = await _userService.GetUserById(ctx.Member.Id.ToString()).ConfigureAwait(false);
                 double winChance = 0.50;
-                double nitroBonus = ctx.Member.PremiumSince != null ? 0.05 : 0;
+                // double nitroBonus = ctx.Member.PremiumSince != null ? 0.05 : 0;
                 double playerStreak = ((double)user.CockFightWinStreak) / 100;
                 double streakBonus = playerStreak < 0.20 ? playerStreak : 0.20;
                 var fightResult = random.NextDouble();
-                double totalStreak = winChance + streakBonus + nitroBonus;
+                double totalStreak = winChance + streakBonus; // + nitroBonus;
                 bool fightWon = totalStreak >= fightResult;
+                decimal casinoTaxRate = ctx.Member.PremiumSince != null ? 0.05m : 0.10m;
+                decimal userTaxRate = await _userService.GetTaxRate(user.DiscordId).ConfigureAwait(false);
+                decimal casinoTax = betAmount * (casinoTaxRate * userTaxRate);
                 NumberFormatInfo nfi = new CultureInfo("en-US", false).NumberFormat;
                 nfi.PercentDecimalDigits = 0;
 
@@ -431,10 +690,11 @@ namespace RalphsDiscordBot.Commands
                     // check fight results
                     if (fightWon) // win fight
                     {
-                        DiscordEmbedBuilder embed = new DiscordEmbedBuilder { Description = $"{ctx.Member.Mention}, your chicken kicked ass. You win ${betAmount:N}" };
+                        DiscordEmbedBuilder embed = new DiscordEmbedBuilder { Description = $"{ctx.Member.Mention}, your chicken kicked ass. You win ${betAmount - casinoTax:N}" };
                         embed.Color = DiscordColor.Green;
-                        embed.WithFooter($"Current win chance: {totalStreak.ToString("P", nfi)}. New Cash Balance: ${(user.CashBalance + betAmount):N}");
-                        await _userService.GiveMoney(ctx.Member.Id.ToString(), betAmount);
+                        embed.WithFooter($"Current win chance: {totalStreak.ToString("P", nfi)}. New Cash Balance: ${(user.CashBalance + betAmount - casinoTax):N}\nCasino collects {(casinoTaxRate * userTaxRate).ToString("P", nfi)} tax on winnings for the lottery.");
+                        await _userService.GiveMoney(ctx.Member.Id.ToString(), betAmount - casinoTax);
+                        await _userService.GiveMoney(_casinoUserId, casinoTax); // lottery pool gets 10% of winnings
                         await ctx.Channel.SendMessageAsync(embed: embed);
                     } else // lose fight
                     {
@@ -442,7 +702,7 @@ namespace RalphsDiscordBot.Commands
                         embed.Color = DiscordColor.Red;
                         embed.WithFooter($"Current win chance: {totalStreak.ToString("P", nfi)}. New Cash Balance: ${(user.CashBalance - betAmount):N}");
                         await _userService.TakeMoney(ctx.Member.Id.ToString(), betAmount);
-                        await _userService.GiveMoney(_casinoUserId, betAmount);
+                        
                         await ctx.Channel.SendMessageAsync(embed: embed);
                     }
 

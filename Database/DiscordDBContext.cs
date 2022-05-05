@@ -11,5 +11,6 @@ namespace Database
         public DiscordDBContext(DbContextOptions<DiscordDBContext> options) : base(options) { }
 
         public DbSet<Users> Users { get; set; }
+        public DbSet<LotteryTickets> LotteryTickets { get; set; } 
     }
 }

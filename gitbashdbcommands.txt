@@ -1,5 +1,5 @@
 run in RalphsDiscordBot folder GIT BASH
 
-dotnet-ef migrations add InitialCreate -p ../Database.Migrations/Database.Migrations.csproj --context Database.DiscordDBContext
+dotnet-ef migrations add LotteryUpdate2 -p ../Database.Migrations/Database.Migrations.csproj --context Database.DiscordDBContext
 
-dotnet-ef database update InitialCreate -p ../Database.Migrations/Database.Migrations.csproj --context Database.DiscordDBContext
+dotnet-ef database update LotteryUpdate2 -p ../Database.Migrations/Database.Migrations.csproj --context Database.DiscordDBContext

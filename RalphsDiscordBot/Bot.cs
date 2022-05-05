@@ -107,9 +107,17 @@ namespace RalphsDiscordBot
 
         private async Task HeartBeatEvent(DiscordClient s, HeartbeatEventArgs e)
         {
-            // DiscordChannel channel = await s.GetChannelAsync(959076723813666816);
+            /*
+            DiscordUser ralph = await s.GetUserAsync(152600617947234305);
+            DiscordChannel channel = await s.GetChannelAsync(959076723813666816);
 
-            // await s.SendMessageAsync(channel, "!lottery");
+            IReadOnlyDictionary<string, Command> cmds = Commands.RegisteredCommands;
+
+            // Commands.CreateContext(await s.SendMessageAsync(channel, "test"), "!", cmds.GetValueOrDefault("testf"), null);
+            // cmds.GetValueOrDefault("testf");
+
+            _ = Commands.CreateFakeContext(ralph, channel, "heartbeat event test", "!", cmds.GetValueOrDefault("testf"), "");
+            */
         }
     }
 }

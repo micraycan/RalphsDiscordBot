@@ -4,14 +4,16 @@ using Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Database.Migrations.Migrations
 {
     [DbContext(typeof(DiscordDBContext))]
-    partial class DiscordDBContextModelSnapshot : ModelSnapshot
+    [Migration("20220403112216_LotteryUpdate")]
+    partial class LotteryUpdate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -29,8 +31,8 @@ namespace Database.Migrations.Migrations
                     b.Property<string>("DiscordId")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("TicketNumber")
-                        .HasColumnType("int");
+                    b.Property<decimal>("TicketNumber")
+                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
 
